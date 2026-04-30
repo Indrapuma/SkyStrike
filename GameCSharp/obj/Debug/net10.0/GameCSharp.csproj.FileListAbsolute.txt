@@ -1,0 +1,14 @@
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\GameCSharp.exe
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\GameCSharp.deps.json
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\GameCSharp.runtimeconfig.json
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\GameCSharp.dll
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\GameCSharp.pdb
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.GeneratedMSBuildEditorConfig.editorconfig
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.AssemblyInfoInputs.cache
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.AssemblyInfo.cs
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.csproj.CoreCompileInputs.cache
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.dll
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\refint\GameCSharp.dll
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.pdb
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.genruntimeconfig.cache
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\ref\GameCSharp.dll
