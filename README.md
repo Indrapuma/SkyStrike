@@ -1,4 +1,4 @@
-# SkyStrike MVC
+# SkyStrike Game: Implement Reinforcement Learning in a Classic Game with raylib-cs and C#
 
 SkyStrike MVC is a simple arcade shooter written in C# with a lightweight MVC-style project structure.
 
@@ -196,7 +196,7 @@ The plot contains:
 
 Current generated plot:
 
-![RL training metrics plot](artifacts/rl/episode_metrics_plot.png)
+<img src="./artifacts/rl/episode_metrics_plot.png" alt="RL training metrics plot" width="100%" />
 
 ## RL Components
 
