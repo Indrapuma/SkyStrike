@@ -2,6 +2,8 @@ namespace GameCSharp.RL;
 
 public sealed record TrainingMonitorSnapshot(
     bool Enabled,
+    bool InferenceEnabled,
+    bool HasLearnedPolicy,
     int SimulationStepsPerFrame,
     int EpisodesCompleted,
     float CurrentEpisodeReward,

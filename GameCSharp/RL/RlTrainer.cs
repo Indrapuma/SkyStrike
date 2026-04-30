@@ -18,6 +18,7 @@ public sealed class RlTrainer
 
     private readonly int laneCount = 7;
     private float currentEpisodeReward;
+    private int currentEpisodeSteps;
     private float lastEpisodeReward;
     private float bestEpisodeReward = float.MinValue;
     private float explorationRate = 1f;
@@ -30,16 +31,46 @@ public sealed class RlTrainer
         this.gameState = gameState;
         this.gameEngine = gameEngine;
         this.inputController = inputController;
+
+        LoadPersistedModel();
+        RlArtifacts.EnsureMetricsFile();
     }
 
     public bool Enabled { get; private set; }
 
+    public bool InferenceEnabled { get; private set; }
+
+    public bool HasLearnedPolicy => qTable.Count > 0;
+
+    public string ModelPath => RlArtifacts.ModelPath;
+
     public void ToggleEnabled()
     {
         Enabled = !Enabled;
-        inputController.SetAgentControl(Enabled);
-        if (!Enabled)
+        if (Enabled)
         {
+            InferenceEnabled = false;
+            inputController.SetAgentControl(true);
+        }
+        else
+        {
+            FlushArtifacts();
+            inputController.SetAgentControl(false);
+            inputController.ClearAgentAction();
+        }
+    }
+
+    public void SetInferenceEnabled(bool enabled)
+    {
+        InferenceEnabled = enabled;
+        if (enabled)
+        {
+            Enabled = false;
+            inputController.SetAgentControl(true);
+        }
+        else
+        {
+            inputController.SetAgentControl(false);
             inputController.ClearAgentAction();
         }
     }
@@ -88,6 +119,7 @@ public sealed class RlTrainer
             Learn(state, action, reward, nextState, result.GameOver);
 
             currentEpisodeReward += reward;
+            currentEpisodeSteps++;
             totalTrainingSteps++;
 
             if (result.GameOver)
@@ -98,6 +130,37 @@ public sealed class RlTrainer
         }
     }
 
+    public void UpdateInference(float frameTime)
+    {
+        if (!InferenceEnabled)
+        {
+            return;
+        }
+
+        if (gameState.IsGameOver)
+        {
+            gameState.Reset();
+        }
+
+        var simulationDelta = Math.Min(frameTime, 1f / 30f);
+        if (simulationDelta <= 0f)
+        {
+            simulationDelta = 1f / 60f;
+        }
+
+        if (HasLearnedPolicy)
+        {
+            var action = ChooseBestAction(CaptureState(gameState));
+            inputController.ApplyAgentAction(action);
+        }
+        else
+        {
+            inputController.ClearAgentAction();
+        }
+
+        gameEngine.Update(simulationDelta);
+    }
+
     public TrainingMonitorSnapshot GetMonitorSnapshot()
     {
         var averageReward = recentEpisodeRewards.Count == 0 ? 0f : recentEpisodeRewards.Average();
@@ -106,6 +169,8 @@ public sealed class RlTrainer
         var trainingStepsPerSecond = (float)(totalTrainingSteps / elapsedSeconds);
         return new TrainingMonitorSnapshot(
             Enabled,
+            InferenceEnabled,
+            HasLearnedPolicy,
             simulationStepsPerFrame,
             episodesCompleted,
             currentEpisodeReward,
@@ -119,6 +184,11 @@ public sealed class RlTrainer
             recentEpisodeRewards.ToArray());
     }
 
+    public void FlushArtifacts()
+    {
+        SavePersistedModel();
+    }
+
     private void CompleteEpisode()
     {
         episodesCompleted++;
@@ -130,7 +200,27 @@ public sealed class RlTrainer
             recentEpisodeRewards.Dequeue();
         }
 
+        var averageReward = recentEpisodeRewards.Count == 0 ? 0f : recentEpisodeRewards.Average();
+        var bestReward = bestEpisodeReward == float.MinValue ? 0f : bestEpisodeReward;
+
+        RlArtifacts.AppendEpisodeMetric(new EpisodeMetricRow
+        {
+            TimestampUtc = DateTimeOffset.UtcNow,
+            Episode = episodesCompleted,
+            Reward = currentEpisodeReward,
+            Score = gameState.Score,
+            EpisodeSteps = currentEpisodeSteps,
+            AverageReward = averageReward,
+            BestReward = bestReward,
+            ExplorationRate = explorationRate,
+            TotalTrainingSteps = totalTrainingSteps,
+            QEntries = qTable.Count,
+        });
+
+        SavePersistedModel();
+
         currentEpisodeReward = 0f;
+        currentEpisodeSteps = 0;
         explorationRate = Math.Max(0.05f, explorationRate * 0.995f);
         inputController.ClearAgentAction();
     }
@@ -142,6 +232,23 @@ public sealed class RlTrainer
             return AllActions[random.Next(AllActions.Length)];
         }
 
+        var bestValue = float.NegativeInfinity;
+        var bestAction = RlAction.Idle;
+        foreach (var action in AllActions)
+        {
+            var qValue = GetQValue(state, action);
+            if (qValue > bestValue)
+            {
+                bestValue = qValue;
+                bestAction = action;
+            }
+        }
+
+        return bestAction;
+    }
+
+    private RlAction ChooseBestAction(RlState state)
+    {
         var bestValue = float.NegativeInfinity;
         var bestAction = RlAction.Idle;
         foreach (var action in AllActions)
@@ -232,6 +339,58 @@ public sealed class RlTrainer
     private float GetQValue(RlState state, RlAction action)
     {
         return qTable.TryGetValue((state, action), out var value) ? value : 0f;
+    }
+
+    private void LoadPersistedModel()
+    {
+        var persisted = RlArtifacts.LoadModel();
+
+        qTable.Clear();
+        foreach (var entry in persisted.Entries)
+        {
+            qTable[(entry.State, entry.Action)] = entry.Value;
+        }
+
+        totalTrainingSteps = persisted.TotalTrainingSteps;
+        episodesCompleted = persisted.EpisodesCompleted;
+        lastEpisodeReward = persisted.LastEpisodeReward;
+        bestEpisodeReward = persisted.BestEpisodeReward == 0f && persisted.Entries.Count == 0
+            ? float.MinValue
+            : persisted.BestEpisodeReward;
+        explorationRate = Math.Clamp(persisted.ExplorationRate, 0.05f, 1f);
+
+        recentEpisodeRewards.Clear();
+        foreach (var reward in persisted.RecentEpisodeRewards.TakeLast(60))
+        {
+            recentEpisodeRewards.Enqueue(reward);
+        }
+    }
+
+    private void SavePersistedModel()
+    {
+        if (qTable.Count == 0)
+        {
+            return;
+        }
+
+        var persisted = new PersistedQTable
+        {
+            TotalTrainingSteps = totalTrainingSteps,
+            EpisodesCompleted = episodesCompleted,
+            ExplorationRate = explorationRate,
+            BestEpisodeReward = bestEpisodeReward == float.MinValue ? 0f : bestEpisodeReward,
+            LastEpisodeReward = lastEpisodeReward,
+            RecentEpisodeRewards = recentEpisodeRewards.ToList(),
+            SavedAtUtc = DateTimeOffset.UtcNow,
+            Entries = qTable.Select(entry => new PersistedQValue
+            {
+                State = entry.Key.State,
+                Action = entry.Key.Action,
+                Value = entry.Value,
+            }).ToList(),
+        };
+
+        RlArtifacts.SaveModel(persisted);
     }
 
     private static int Quantize(float value, float maxValue, int bucketCount)

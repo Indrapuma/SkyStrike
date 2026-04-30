@@ -10,9 +10,11 @@ public static class UIScreen
     {
         Raylib.DrawText($"Score: {gameState.Score}", 16, 16, 28, Color.White);
         Raylib.DrawText($"Lives: {gameState.Player.Health}", 16, 48, 28, Color.White);
-        var controlsLine = trainingSnapshot.Enabled
-            ? "Training: ON   Toggle: T   Speed: [ / ]"
-            : "Move: A/D or Arrow Keys   Shoot: Space   Train: T";
+        var controlsLine = trainingSnapshot.InferenceEnabled
+            ? "Inference: ON   Loaded policy controls the ship"
+            : trainingSnapshot.Enabled
+                ? "Training: ON   Toggle: T   Speed: [ / ]"
+                : "Move: A/D or Arrow Keys   Shoot: Space   Train: T";
         Raylib.DrawText(controlsLine, 16, 82, 24, Color.White);
     }
 
@@ -48,10 +50,16 @@ public static class UIScreen
         Raylib.DrawRectangleLines(panelX, panelY, panelWidth, panelHeight, new Color(80, 160, 255, 180));
 
         var titleColor = snapshot.Enabled ? Color.Lime : Color.LightGray;
-        Raylib.DrawText(snapshot.Enabled ? "RL Training Monitor" : "RL Monitor (idle)", panelX + padding, panelY + 12, 24, titleColor);
+        var title = snapshot.InferenceEnabled
+            ? "RL Inference Monitor"
+            : snapshot.Enabled
+                ? "RL Training Monitor"
+                : "RL Monitor (idle)";
+        Raylib.DrawText(title, panelX + padding, panelY + 12, 24, titleColor);
 
         var lines = new[]
         {
+            $"Policy loaded: {(snapshot.HasLearnedPolicy ? "yes" : "no")}",
             $"Episodes: {snapshot.EpisodesCompleted}",
             $"Episode reward: {snapshot.CurrentEpisodeReward:F2}",
             $"Last reward: {snapshot.LastEpisodeReward:F2}",
