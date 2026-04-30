@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "CY1tl5fYck8=",
+  "dgSpecHash": "+kYy2Upw3Ws=",
   "success": true,
   "projectFilePath": "D:\\portfolio\\Game C#\\GameCSharp\\GameCSharp.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\Thinkpad\\.nuget\\packages\\raylib-cs\\7.0.1\\raylib-cs.7.0.1.nupkg.sha512"
+  ],
   "logs": []
 }

@@ -2,6 +2,8 @@ namespace GameCSharp.Model;
 
 public sealed class EnemyManager
 {
+    private const int MaxActiveEnemies = 4;
+
     private readonly Random random = new();
     private float spawnElapsed;
     private float nextSpawnDelay;
@@ -24,7 +26,7 @@ public sealed class EnemyManager
     public void Update(GameState gameState, float deltaTime)
     {
         spawnElapsed += deltaTime;
-        if (spawnElapsed >= nextSpawnDelay)
+        if (spawnElapsed >= nextSpawnDelay && ActiveEnemies.Count < MaxActiveEnemies)
         {
             spawnElapsed = 0f;
             SpawnEnemy(gameState.WorldWidth);
@@ -55,14 +57,14 @@ public sealed class EnemyManager
         const float horizontalPadding = 12f;
         var availableWidth = Math.Max(horizontalPadding, worldWidth - 42f - horizontalPadding);
         var x = horizontalPadding + (float)random.NextDouble() * availableWidth;
-        var velocityY = 110f + (float)random.NextDouble() * 130f;
-        var velocityX = -60f + (float)random.NextDouble() * 120f;
+        var velocityY = 65f + (float)random.NextDouble() * 55f;
+        var velocityX = -24f + (float)random.NextDouble() * 48f;
 
         ActiveEnemies.Add(new Enemy(x, -48f, velocityX, velocityY));
     }
 
     private void ScheduleNextSpawn()
     {
-        nextSpawnDelay = 0.45f + (float)random.NextDouble() * 0.7f;
+        nextSpawnDelay = 1.35f + (float)random.NextDouble() * 0.95f;
     }
 }

@@ -2,7 +2,7 @@ namespace GameCSharp.Model;
 
 public sealed class Player : Entity
 {
-    private const float ShootIntervalSeconds = 0.22f;
+    private const float ShootIntervalSeconds = 0.18f;
     private float shootCooldownRemaining;
 
     public Player(float x, float y)
@@ -10,7 +10,7 @@ public sealed class Player : Entity
     {
         Health = 3;
         WeaponLevel = 1;
-        MoveSpeed = 420f;
+        MoveSpeed = 560f;
     }
 
     public int Health { get; set; }

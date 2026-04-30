@@ -12,3 +12,12 @@ D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\refint\GameCSharp.dll
 D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.pdb
 D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.genruntimeconfig.cache
 D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\ref\GameCSharp.dll
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\Raylib-cs.dll
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\runtimes\linux-x64\native\libraylib.so
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\runtimes\osx-arm64\native\libraylib.dylib
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\runtimes\osx-x64\native\libraylib.dylib
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\runtimes\win-x64\native\raylib.dll
+D:\portfolio\Game C#\GameCSharp\bin\Debug\net10.0\runtimes\win-x86\native\raylib.dll
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.csproj.AssemblyReference.cache
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.sourcelink.json
+D:\portfolio\Game C#\GameCSharp\obj\Debug\net10.0\GameCSharp.csproj.Up2Date

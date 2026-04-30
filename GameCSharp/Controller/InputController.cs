@@ -1,54 +1,77 @@
-using System.Windows.Forms;
+using Raylib_cs;
+using GameCSharp.RL;
 
 namespace GameCSharp.Controller;
 
 public sealed class InputController
 {
+    private bool manualMoveLeft;
+    private bool manualMoveRight;
+    private bool manualFire;
+    private bool agentMoveLeft;
+    private bool agentMoveRight;
+    private bool agentFire;
     private bool restartRequested;
+    private bool toggleTrainingRequested;
+    private bool increaseTrainingSpeedRequested;
+    private bool decreaseTrainingSpeedRequested;
 
-    public bool MoveLeft { get; private set; }
+    public bool UseAgentControl { get; private set; }
 
-    public bool MoveRight { get; private set; }
+    public bool MoveLeft => UseAgentControl ? agentMoveLeft : manualMoveLeft;
 
-    public bool Fire { get; private set; }
+    public bool MoveRight => UseAgentControl ? agentMoveRight : manualMoveRight;
 
-    public void HandleKeyDown(KeyEventArgs eventArgs)
+    public bool Fire => UseAgentControl ? agentFire : manualFire;
+
+    public void Poll()
     {
-        switch (eventArgs.KeyCode)
+        manualMoveLeft = Raylib.IsKeyDown(KeyboardKey.A) || Raylib.IsKeyDown(KeyboardKey.Left);
+        manualMoveRight = Raylib.IsKeyDown(KeyboardKey.D) || Raylib.IsKeyDown(KeyboardKey.Right);
+        manualFire = Raylib.IsKeyDown(KeyboardKey.Space);
+
+        if (Raylib.IsKeyPressed(KeyboardKey.R))
         {
-            case Keys.A:
-            case Keys.Left:
-                MoveLeft = true;
-                break;
-            case Keys.D:
-            case Keys.Right:
-                MoveRight = true;
-                break;
-            case Keys.Space:
-                Fire = true;
-                break;
-            case Keys.R:
-                restartRequested = true;
-                break;
+            restartRequested = true;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.T))
+        {
+            toggleTrainingRequested = true;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.RightBracket) || Raylib.IsKeyPressed(KeyboardKey.Equal) || Raylib.IsKeyPressed(KeyboardKey.KpAdd))
+        {
+            increaseTrainingSpeedRequested = true;
+        }
+
+        if (Raylib.IsKeyPressed(KeyboardKey.LeftBracket) || Raylib.IsKeyPressed(KeyboardKey.Minus) || Raylib.IsKeyPressed(KeyboardKey.KpSubtract))
+        {
+            decreaseTrainingSpeedRequested = true;
         }
     }
 
-    public void HandleKeyUp(KeyEventArgs eventArgs)
+    public void SetAgentControl(bool enabled)
     {
-        switch (eventArgs.KeyCode)
+        UseAgentControl = enabled;
+        if (!enabled)
         {
-            case Keys.A:
-            case Keys.Left:
-                MoveLeft = false;
-                break;
-            case Keys.D:
-            case Keys.Right:
-                MoveRight = false;
-                break;
-            case Keys.Space:
-                Fire = false;
-                break;
+            ClearAgentAction();
         }
+    }
+
+    public void ApplyAgentAction(RlAction action)
+    {
+        agentMoveLeft = action is RlAction.MoveLeft or RlAction.MoveLeftShoot;
+        agentMoveRight = action is RlAction.MoveRight or RlAction.MoveRightShoot;
+        agentFire = action is RlAction.Shoot or RlAction.MoveLeftShoot or RlAction.MoveRightShoot;
+    }
+
+    public void ClearAgentAction()
+    {
+        agentMoveLeft = false;
+        agentMoveRight = false;
+        agentFire = false;
     }
 
     public bool ConsumeRestartRequested()
@@ -56,5 +79,26 @@ public sealed class InputController
         var shouldRestart = restartRequested;
         restartRequested = false;
         return shouldRestart;
+    }
+
+    public bool ConsumeToggleTrainingRequested()
+    {
+        var shouldToggle = toggleTrainingRequested;
+        toggleTrainingRequested = false;
+        return shouldToggle;
+    }
+
+    public bool ConsumeIncreaseTrainingSpeedRequested()
+    {
+        var shouldIncrease = increaseTrainingSpeedRequested;
+        increaseTrainingSpeedRequested = false;
+        return shouldIncrease;
+    }
+
+    public bool ConsumeDecreaseTrainingSpeedRequested()
+    {
+        var shouldDecrease = decreaseTrainingSpeedRequested;
+        decreaseTrainingSpeedRequested = false;
+        return shouldDecrease;
     }
 }

@@ -1,12 +1,13 @@
-using System.Drawing;
-using System.Drawing.Drawing2D;
+using System.Numerics;
+using Raylib_cs;
 using GameCSharp.Model;
+using GameCSharp.RL;
 
 namespace GameCSharp.View;
 
 public sealed class GameRenderer
 {
-    private readonly List<Point> stars = new();
+    private readonly List<Vector2> stars = new();
     private readonly Random random = new(42);
 
     public GameRenderer(int width, int height)
@@ -21,76 +22,84 @@ public sealed class GameRenderer
         var starCount = Math.Max(30, (width * height) / 14000);
         for (var index = 0; index < starCount; index++)
         {
-            stars.Add(new Point(random.Next(Math.Max(1, width)), random.Next(Math.Max(1, height))));
+            stars.Add(new Vector2(random.Next(Math.Max(1, width)), random.Next(Math.Max(1, height))));
         }
     }
 
-    public void Render(Graphics graphics, GameState gameState, Size clientSize)
+    public void Render(GameState gameState, int screenWidth, int screenHeight, TrainingMonitorSnapshot trainingSnapshot)
     {
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        DrawBackground(screenWidth, screenHeight);
+        DrawStars();
+        DrawPlayer(gameState.Player);
+        DrawBullets(gameState.ActiveBullets);
+        DrawEnemies(gameState.EnemyManager.ActiveEnemies);
+        UIScreen.DrawHud(gameState, trainingSnapshot);
+        UIScreen.DrawTrainingMonitor(trainingSnapshot, screenWidth, screenHeight);
 
-        using var background = new LinearGradientBrush(
-            new Rectangle(Point.Empty, clientSize),
-            Color.FromArgb(10, 16, 34),
-            Color.FromArgb(0, 0, 0),
-            LinearGradientMode.Vertical);
-        graphics.FillRectangle(background, new Rectangle(Point.Empty, clientSize));
-
-        DrawStars(graphics);
-        DrawPlayer(graphics, gameState.Player);
-        DrawBullets(graphics, gameState.ActiveBullets);
-        DrawEnemies(graphics, gameState.EnemyManager.ActiveEnemies);
-        UIScreen.DrawHud(graphics, gameState);
-
-        if (gameState.IsGameOver)
+        if (gameState.IsGameOver && !trainingSnapshot.Enabled)
         {
-            UIScreen.DrawGameOver(graphics, clientSize, gameState.Score);
+            UIScreen.DrawGameOver(screenWidth, screenHeight, gameState.Score);
         }
     }
 
-    private void DrawStars(Graphics graphics)
+    private static void DrawBackground(int screenWidth, int screenHeight)
     {
-        using var starBrush = new SolidBrush(Color.FromArgb(120, 230, 240, 255));
+        var topColor = new Color(10, 16, 34, 255);
+        var bottomColor = new Color(0, 0, 0, 255);
+
+        for (var y = 0; y < screenHeight; y++)
+        {
+            var blend = screenHeight <= 1 ? 0f : y / (float)(screenHeight - 1);
+            var color = ColorLerp(topColor, bottomColor, blend);
+            Raylib.DrawLine(0, y, screenWidth, y, color);
+        }
+    }
+
+    private void DrawStars()
+    {
+        var starColor = new Color(230, 240, 255, 120);
         foreach (var star in stars)
         {
-            graphics.FillEllipse(starBrush, star.X, star.Y, 2, 2);
+            Raylib.DrawCircleV(star, 1.5f, starColor);
         }
     }
 
-    private static void DrawPlayer(Graphics graphics, Player player)
+    private static void DrawPlayer(Player player)
     {
-        var points = new[]
-        {
-            new PointF(player.X + (player.Width / 2f), player.Y),
-            new PointF(player.X + player.Width, player.Y + player.Height),
-            new PointF(player.X + (player.Width / 2f), player.Y + player.Height - 12f),
-            new PointF(player.X, player.Y + player.Height),
-        };
+        var nose = new Vector2(player.X + (player.Width / 2f), player.Y);
+        var rightWing = new Vector2(player.X + player.Width, player.Y + player.Height);
+        var leftWing = new Vector2(player.X, player.Y + player.Height);
+        var tail = new Vector2(player.X + (player.Width / 2f), player.Y + player.Height - 12f);
 
-        using var bodyBrush = new SolidBrush(Color.DeepSkyBlue);
-        using var canopyBrush = new SolidBrush(Color.FromArgb(220, 235, 247, 255));
-        graphics.FillPolygon(bodyBrush, points);
-        graphics.FillEllipse(canopyBrush, player.X + 16f, player.Y + 12f, 20f, 14f);
+        Raylib.DrawTriangle(nose, rightWing, tail, Color.SkyBlue);
+        Raylib.DrawTriangle(nose, tail, leftWing, Color.SkyBlue);
+        Raylib.DrawEllipse((int)(player.X + 26f), (int)(player.Y + 19f), 10f, 7f, new Color(220, 235, 247, 255));
     }
 
-    private static void DrawBullets(Graphics graphics, IEnumerable<Bullet> bullets)
+    private static void DrawBullets(IEnumerable<Bullet> bullets)
     {
-        using var bulletBrush = new SolidBrush(Color.Gold);
         foreach (var bullet in bullets)
         {
-            graphics.FillRectangle(bulletBrush, bullet.Bounds);
+            Raylib.DrawRectangle((int)bullet.X, (int)bullet.Y, (int)bullet.Width, (int)bullet.Height, Color.Gold);
         }
     }
 
-    private static void DrawEnemies(Graphics graphics, IEnumerable<Enemy> enemies)
+    private static void DrawEnemies(IEnumerable<Enemy> enemies)
     {
-        using var hullBrush = new SolidBrush(Color.IndianRed);
-        using var coreBrush = new SolidBrush(Color.FromArgb(255, 250, 208));
-
         foreach (var enemy in enemies)
         {
-            graphics.FillEllipse(hullBrush, enemy.Bounds);
-            graphics.FillRectangle(coreBrush, enemy.X + 12f, enemy.Y + 12f, 18f, 18f);
+            Raylib.DrawCircle((int)(enemy.X + (enemy.Width / 2f)), (int)(enemy.Y + (enemy.Height / 2f)), enemy.Width / 2f, Color.Maroon);
+            Raylib.DrawRectangle((int)(enemy.X + 12f), (int)(enemy.Y + 12f), 18, 18, Color.Beige);
         }
+    }
+
+    private static Color ColorLerp(Color start, Color end, float amount)
+    {
+        amount = Math.Clamp(amount, 0f, 1f);
+        return new Color(
+            (int)(start.R + ((end.R - start.R) * amount)),
+            (int)(start.G + ((end.G - start.G) * amount)),
+            (int)(start.B + ((end.B - start.B) * amount)),
+            (int)(start.A + ((end.A - start.A) * amount)));
     }
 }

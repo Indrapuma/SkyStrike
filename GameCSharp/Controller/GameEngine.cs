@@ -1,62 +1,48 @@
-using System.Windows.Forms;
 using GameCSharp.Model;
 
 namespace GameCSharp.Controller;
 
-public sealed class GameEngine : IDisposable
+public sealed class GameEngine
 {
-    private const float DeltaTime = 1f / 60f;
-
     private readonly GameState gameState;
     private readonly InputController inputController;
-    private readonly Action requestFrame;
-    private readonly System.Windows.Forms.Timer gameTimer;
 
-    public GameEngine(GameState gameState, InputController inputController, Action requestFrame)
+    public GameEngine(GameState gameState, InputController inputController)
     {
         this.gameState = gameState;
         this.inputController = inputController;
-        this.requestFrame = requestFrame;
-
-        gameTimer = new System.Windows.Forms.Timer
-        {
-            Interval = 16,
-        };
-        gameTimer.Tick += (_, _) => Tick();
     }
 
-    public void Start()
+    public GameStepResult Update(float deltaTime)
     {
-        gameTimer.Start();
-    }
+        var result = new GameStepResult();
 
-    public void Dispose()
-    {
-        gameTimer.Stop();
-        gameTimer.Dispose();
-    }
-
-    private void Tick()
-    {
         if (gameState.IsGameOver)
         {
             if (inputController.ConsumeRestartRequested())
             {
                 gameState.Reset();
+                result.ResetTriggered = true;
             }
 
-            requestFrame();
-            return;
+            result.GameOver = gameState.IsGameOver;
+            return result;
         }
 
-        UpdatePlayer();
-        gameState.UpdateBullets(DeltaTime);
-        gameState.EnemyManager.Update(gameState, DeltaTime);
-        ResolveCollisions();
-        requestFrame();
+        var clampedDeltaTime = Math.Min(deltaTime, 1f / 30f);
+        var healthBefore = gameState.Player.Health;
+
+        result.BulletFired = UpdatePlayer(clampedDeltaTime);
+        gameState.UpdateBullets(clampedDeltaTime);
+        gameState.EnemyManager.Update(gameState, clampedDeltaTime);
+        result.EnemiesDestroyed = ResolveCollisions();
+        result.ScoreDelta = result.EnemiesDestroyed * 100;
+        result.DamageTaken = Math.Max(0, healthBefore - gameState.Player.Health);
+        result.GameOver = gameState.IsGameOver;
+        return result;
     }
 
-    private void UpdatePlayer()
+    private bool UpdatePlayer(float deltaTime)
     {
         var direction = 0f;
         if (inputController.MoveLeft)
@@ -69,19 +55,24 @@ public sealed class GameEngine : IDisposable
             direction += 1f;
         }
 
-        gameState.Player.X += direction * gameState.Player.MoveSpeed * DeltaTime;
+        gameState.Player.X += direction * gameState.Player.MoveSpeed * deltaTime;
         gameState.Player.X = Math.Clamp(gameState.Player.X, 0f, gameState.WorldWidth - gameState.Player.Width);
 
-        gameState.Player.AdvanceCooldown(DeltaTime);
+        gameState.Player.AdvanceCooldown(deltaTime);
         if (inputController.Fire && gameState.Player.CanShoot)
         {
             gameState.FireBullet();
             gameState.Player.ResetShootCooldown();
+            return true;
         }
+
+        return false;
     }
 
-    private void ResolveCollisions()
+    private int ResolveCollisions()
     {
+        var enemiesDestroyed = 0;
+
         for (var bulletIndex = gameState.ActiveBullets.Count - 1; bulletIndex >= 0; bulletIndex--)
         {
             var bullet = gameState.ActiveBullets[bulletIndex];
@@ -98,6 +89,7 @@ public sealed class GameEngine : IDisposable
                 gameState.ActiveBullets.RemoveAt(bulletIndex);
                 gameState.EnemyManager.ActiveEnemies.RemoveAt(enemyIndex);
                 gameState.AddScore(enemy.Worth);
+                enemiesDestroyed++;
                 bulletConsumed = true;
                 break;
             }
@@ -119,5 +111,7 @@ public sealed class GameEngine : IDisposable
             gameState.EnemyManager.ActiveEnemies.RemoveAt(enemyIndex);
             gameState.DamagePlayer();
         }
+
+        return enemiesDestroyed;
     }
 }
